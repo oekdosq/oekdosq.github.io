@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scroll Film</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root { --runway: 600vh; }
+
+    body {
+      height: var(--runway);
+      background: #000;
+      overflow-x: hidden;
+    }
+
+    .hero {
+      height: var(--runway);
+    }
+
+    .hero_stage {
+      position: sticky;
+      top: 0;
+      height: 100svh;
+      overflow: hidden;
+      perspective: 420px;
+    }
+
+    /* Video or fallback animation */
+    .hero_stage video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .bg_fallback {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #0a001a, #1a0030, #0a001a);
+      z-index: 0;
+    }
+
+    .bg_fallback::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.3), transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: glow 4s ease-in-out infinite alternate;
+    }
+
+    .bg_fallback::after {
+      content: '';
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(236,72,153,0.2), transparent 70%);
+      top: 30%;
+      left: 60%;
+      transform: translate(-50%, -50%);
+      animation: glow 3s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes glow {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+      100% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+    }
+
+    .sticky_mask {
+      position: sticky;
+      top: 0;
+      height: 100svh;
+      overflow: hidden;
+    }
+
+    .beats {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .beat {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .beat[data-visible="true"] { opacity: 1; }
+
+    .glyph {
+      display: inline-block;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+      font-size: clamp(3rem, 10vw, 8rem);
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
+    }
+
+    .glyph:nth-child(odd) { transform: rotateY(8deg); }
+    .glyph:nth-child(even) { transform: rotateY(-8deg); }
+    .glyph:nth-child(3n) { transform: rotateX(6deg) rotateY(4deg); }
+
+    .beat[data-visible="true"] .glyph {
+      transform: rotateY(0) rotateX(0);
+    }
+
+    .timecode {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      font: 13px/1 'Courier New', monospace;
+      color: rgba(255, 255, 255, 0.3);
+      z-index: 10;
+      letter-spacing: 0.05em;
+    }
+
+    .scroll_hint {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.25);
+      z-index: 10;
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.25; }
+      50% { opacity: 0.6; }
+    }
+
+    @media (max-width: 640px) {
+      :root { --runway: 400vh; }
+      .glyph { font-size: clamp(2rem, 12vw, 5rem); }
+      .timecode { bottom: 16px; right: 16px; font-size: 11px; }
+      .scroll_hint { bottom: 16px; left: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <div class="hero_stage">
+      <div class="bg_fallback"></div>
+
+      <video muted playsinline id="film" style="display:none">
+        <source src="scroll.mp4" type="video/mp4">
+      </video>
+
+      <div class="beats">
+        <div class="beat" data-start="0.17" data-end="0.25">
+          <span class="glyph">1</span>
+          <span class="glyph">7</span>
+          <span class="glyph">:</span>
+          <span class="glyph">4</span>
+          <span class="glyph">2</span>
+        </div>
+        <div class="beat" data-start="0.30" data-end="0.38">
+          <span class="glyph">1</span>
+          <span class="glyph">9</span>
+          <span class="glyph">:</span>
+          <span class="glyph">0</span>
+          <span class="glyph">5</span>
+        </div>
+        <div class="beat" data-start="0.50" data-end="0.58">
+          <span class="glyph">2</span>
+          <span class="glyph">1</span>
+          <span class="glyph">:</span>
+          <span class="glyph">3</span>
+          <span class="glyph">0</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="timecode" id="tc">00:00.000</div>
+  <div class="scroll_hint">Scroll to play</div>
+
+  <script>
+    const video = document.getElementById('film');
+    const beats = document.querySelectorAll('.beat');
+    const tc = document.getElementById('tc');
+    const hero = document.querySelector('.hero');
+
+    let hasVideo = false;
+
+    video.addEventListener('loadeddata', () => {
+      hasVideo = true;
+      video.style.display = '';
+      document.querySelector('.bg_fallback').style.display = 'none';
+    });
+
+    function sync() {
+      const max = hero.scrollHeight - window.innerHeight;
+      const pct = Math.min(Math.max(window.scrollY / max, 0), 1);
+
+      if (hasVideo && video.duration) {
+        video.currentTime = pct * video.duration;
+        const sec = pct * video.duration;
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        tc.textContent = String(m).padStart(2, '0') + ':' + s.toFixed(3).padStart(6, '0');
+      } else {
+        const total = 1400;
+        const sec = pct * total;
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        tc.textContent = String(m).padStart(2, '0') + ':' + s.toFixed(3).padStart(6, '0');
+      }
+
+      beats.forEach(b => {
+        const start = parseFloat(b.dataset.start);
+        const end = parseFloat(b.dataset.end);
+        b.dataset.visible = (pct >= start && pct <= end).toString();
+      });
+    }
+
+    window.addEventListener('scroll', sync, { passive: true });
+    video.preload = 'auto';
+    sync();
+  </script>
+
+</body>
+</html>
