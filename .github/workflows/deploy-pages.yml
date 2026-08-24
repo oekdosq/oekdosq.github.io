@@ -24,6 +24,14 @@ jobs:
         run: npm install --legacy-peer-deps --no-audit --no-fund
       - name: Build static site
         run: STATIC_EXPORT=1 npm run build
+      - name: Make clean URLs work with and without trailing slash
+        run: |
+          for f in out/*.html; do
+            name=$(basename "$f" .html)
+            [ "$name" = "index" ] && continue
+            mkdir -p "out/$name"
+            cp "$f" "out/$name/index.html"
+          done
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out
